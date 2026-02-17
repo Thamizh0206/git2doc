@@ -1,231 +1,136 @@
-import { Link, useLocation } from "react-router-dom";
-import { FileText, Menu, X, ChevronDown, User, LogOut } from "lucide-react";
-import { useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useState, useEffect } from "react";
+import { Menu, X, Github, FileText, Sparkles } from "lucide-react";
 
 const Navbar = () => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [homeDropdownOpen, setHomeDropdownOpen] = useState(false);
-  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
-  const location = useLocation();
-  const { user, isAuthenticated, logout } = useAuth();
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const isHomePage = location.pathname === "/";
-
-  const handleHomeLink = (hash: string) => {
-    setHomeDropdownOpen(false);
-    setMobileMenuOpen(false);
-    if (isHomePage) {
-      const element = document.querySelector(hash);
-      element?.scrollIntoView({ behavior: "smooth" });
-    } else {
-      window.location.href = `/${hash}`;
-    }
-  };
-
-  const handleLogout = () => {
-    logout();
-    setAccountDropdownOpen(false);
-    setMobileMenuOpen(false);
-  };
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
+    <nav
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
+          ? "bg-white/80 backdrop-blur-xl shadow-lg shadow-gray-200/50 border-b border-gray-200/50"
+          : "bg-transparent"
+        }`}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-              <FileText className="w-5 h-5 text-white" />
+          <div className="flex items-center gap-3 group cursor-pointer">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
+              <div className="relative bg-gradient-to-br from-indigo-600 to-purple-600 p-2.5 rounded-xl shadow-lg">
+                <FileText className="w-6 h-6 text-white" />
+              </div>
             </div>
-            <span className="font-bold text-xl">Git2Doc</span>
-          </Link>
+            <div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                Git2Doc
+              </h1>
+              <p className="text-xs text-muted-foreground -mt-1">AI Documentation</p>
+            </div>
+          </div>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
-            {/* Home Dropdown */}
-            <div 
-              className="relative"
-              onMouseEnter={() => setHomeDropdownOpen(true)}
-              onMouseLeave={() => setHomeDropdownOpen(false)}
+            <a
+              href="#features"
+              className="text-gray-700 hover:text-indigo-600 font-medium transition-colors relative group"
             >
-              <button
-                className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Home
-                <ChevronDown className={`w-4 h-4 transition-transform ${homeDropdownOpen ? "rotate-180" : ""}`} />
-              </button>
-              {homeDropdownOpen && (
-                <div className="absolute top-full left-0 pt-2">
-                  <div className="w-48 bg-card border border-border rounded-lg shadow-xl py-2 z-50">
-                    <button
-                      onClick={() => handleHomeLink("#how-it-works")}
-                      className="w-full text-left px-4 py-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                    >
-                      How It Works
-                    </button>
-                    <button
-                      onClick={() => handleHomeLink("#features")}
-                      className="w-full text-left px-4 py-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                    >
-                      Features
-                    </button>
-                    <button
-                      onClick={() => handleHomeLink("#preview")}
-                      className="w-full text-left px-4 py-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                    >
-                      Preview
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-            <Link to="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">
-              Pricing
-            </Link>
-            <Link to="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
-              Dashboard
-            </Link>
-          </div>
-
-          {/* Desktop Auth Buttons */}
-          <div className="hidden md:flex items-center gap-3">
-            {isAuthenticated ? (
-              <div 
-                className="relative"
-                onMouseEnter={() => setAccountDropdownOpen(true)}
-                onMouseLeave={() => setAccountDropdownOpen(false)}
-              >
-                <button
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                    <User className="w-4 h-4 text-white" />
-                  </div>
-                  <span className="text-sm font-medium">{user?.fullName}</span>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${accountDropdownOpen ? "rotate-180" : ""}`} />
-                </button>
-                {accountDropdownOpen && (
-                  <div className="absolute top-full right-0 pt-2">
-                    <div className="w-48 bg-card border border-border rounded-lg shadow-xl py-2 z-50">
-                      <div className="px-4 py-2 border-b border-border">
-                        <p className="text-sm font-medium">{user?.fullName}</p>
-                        <p className="text-xs text-muted-foreground">{user?.email || user?.phone}</p>
-                      </div>
-                      <Link
-                        to="/dashboard"
-                        className="block w-full text-left px-4 py-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                        onClick={() => setAccountDropdownOpen(false)}
-                      >
-                        Dashboard
-                      </Link>
-                      <button
-                        onClick={handleLogout}
-                        className="w-full text-left px-4 py-2 text-red-400 hover:text-red-300 hover:bg-muted/50 transition-colors flex items-center gap-2"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Log out
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <Link to="/login" className="btn-ghost">
-                Log in
-              </Link>
-            )}
+              Features
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-indigo-600 to-purple-600 group-hover:w-full transition-all duration-300" />
+            </a>
+            <a
+              href="#how-it-works"
+              className="text-gray-700 hover:text-indigo-600 font-medium transition-colors relative group"
+            >
+              How It Works
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-indigo-600 to-purple-600 group-hover:w-full transition-all duration-300" />
+            </a>
+            <a
+              href="#examples"
+              className="text-gray-700 hover:text-indigo-600 font-medium transition-colors relative group"
+            >
+              Examples
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-indigo-600 to-purple-600 group-hover:w-full transition-all duration-300" />
+            </a>
+            <a
+              href="https://github.com/Manik0107/Git2Doc"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium transition-all duration-300 hover:scale-105"
+            >
+              <Github className="w-5 h-5" />
+              GitHub
+            </a>
+            <button className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-300 hover:scale-105">
+              <Sparkles className="w-5 h-5" />
+              Get Started
+            </button>
           </div>
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden p-2"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="md:hidden p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
           >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {isMobileMenuOpen ? (
+              <X className="w-6 h-6 text-gray-900" />
+            ) : (
+              <Menu className="w-6 h-6 text-gray-900" />
+            )}
           </button>
         </div>
-
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden py-4 border-t border-border">
-            <div className="flex flex-col gap-4">
-              {/* Mobile Home Dropdown */}
-              <div>
-                <button
-                  onClick={() => setHomeDropdownOpen(!homeDropdownOpen)}
-                  className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Home
-                  <ChevronDown className={`w-4 h-4 transition-transform ${homeDropdownOpen ? "rotate-180" : ""}`} />
-                </button>
-                {homeDropdownOpen && (
-                  <div className="ml-4 mt-2 flex flex-col gap-2">
-                    <button
-                      onClick={() => handleHomeLink("#how-it-works")}
-                      className="text-left text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      How It Works
-                    </button>
-                    <button
-                      onClick={() => handleHomeLink("#features")}
-                      className="text-left text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      Features
-                    </button>
-                    <button
-                      onClick={() => handleHomeLink("#preview")}
-                      className="text-left text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      Preview
-                    </button>
-                  </div>
-                )}
-              </div>
-              <Link 
-                to="/pricing" 
-                className="text-muted-foreground hover:text-foreground transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Pricing
-              </Link>
-              <Link 
-                to="/dashboard" 
-                className="text-muted-foreground hover:text-foreground transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Dashboard
-              </Link>
-              <div className="flex flex-col gap-2 pt-4 border-t border-border">
-                {isAuthenticated ? (
-                  <>
-                    <div className="flex items-center gap-2 px-2 py-2">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                        <User className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">{user?.fullName}</p>
-                        <p className="text-xs text-muted-foreground">{user?.email || user?.phone}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleLogout}
-                      className="btn-outline justify-center text-red-400 border-red-400/30 hover:bg-red-400/10"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Log out
-                    </button>
-                  </>
-                ) : (
-                  <Link to="/login" className="btn-outline justify-center" onClick={() => setMobileMenuOpen(false)}>
-                    Log in
-                  </Link>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Mobile Menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden bg-white/95 backdrop-blur-xl border-t border-gray-200 shadow-xl">
+          <div className="px-4 py-6 space-y-4">
+            <a
+              href="#features"
+              className="block px-4 py-3 rounded-xl text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-medium transition-all"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Features
+            </a>
+            <a
+              href="#how-it-works"
+              className="block px-4 py-3 rounded-xl text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-medium transition-all"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              How It Works
+            </a>
+            <a
+              href="#examples"
+              className="block px-4 py-3 rounded-xl text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-medium transition-all"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Examples
+            </a>
+            <a
+              href="https://github.com/Manik0107/Git2Doc"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium transition-all"
+            >
+              <Github className="w-5 h-5" />
+              GitHub
+            </a>
+            <button className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold shadow-lg">
+              <Sparkles className="w-5 h-5" />
+              Get Started
+            </button>
+          </div>
+        </div>
+      )}
     </nav>
   );
 };

@@ -372,7 +372,7 @@ doc_content = doc_content.strip()
 
 # Save the documentation (with placeholder for now)
 output_file = "content.txt"
-with open(output_file, "w") as f:
+with open(output_file, "w", encoding="utf-8") as f:
     f.write(doc_content)
     
 print(f"Documentation saved to {output_file}")
@@ -658,7 +658,7 @@ if os.path.exists(workflow_diagram_path):
                 print("⚠️  Workflow diagram appended to end of document")
     
     # Save the updated documentation
-    with open(output_file, "w") as f:
+    with open(output_file, "w", encoding="utf-8") as f:
         f.write(doc_content)
     
     print(f"Updated documentation saved to {output_file}")

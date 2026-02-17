@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createBrowserRouter, ScrollRestoration, Outlet } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
-import Index from "./pages/Index";
+import SimpleLanding from "./pages/Index";
 import Article from "./pages/Article";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
@@ -29,7 +29,7 @@ const router = createBrowserRouter([
     children: [
       {
         path: "/",
-        element: <Index />,
+        element: <SimpleLanding />,
       },
       {
         path: "/article/:slug",
