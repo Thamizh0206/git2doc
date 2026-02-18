@@ -13,7 +13,7 @@ const SimpleLanding = () => {
                         <h1 className="text-2xl font-bold text-gray-900">Git2Doc</h1>
                     </div>
                     <a
-                        href="https://github.com/Manik0107/Git2Doc"
+                        href="https://github.com/Thamizh0206/git2doc.git"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 hover:bg-gray-800 text-white transition-colors"

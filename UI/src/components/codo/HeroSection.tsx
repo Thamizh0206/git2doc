@@ -17,8 +17,8 @@ const HeroSection = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const setupCommands = `git clone https://github.com/Manik0107/Git2Doc.git
-cd Git2Doc
+  const setupCommands = `git clone https://github.com/Thamizh0206/git2doc.git
+cd git2doc
 python -m venv venv
 venv\\Scripts\\activate
 pip install -r requirements.txt

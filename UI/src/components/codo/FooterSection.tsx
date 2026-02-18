@@ -30,7 +30,7 @@ const FooterSection = () => {
             </p>
             <div className="flex items-center gap-3">
               <a
-                href="https://github.com/Manik0107/Git2Doc"
+                href="https://github.com/Thamizh0206/git2doc.git"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-3 rounded-xl bg-white hover:bg-gray-100 border border-gray-200 hover:border-indigo-300 transition-all duration-300 hover:scale-110 group"
