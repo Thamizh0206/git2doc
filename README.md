@@ -20,7 +20,7 @@ license: apache-2.0
 
 ## Overview
 
-**Code2Doc** is an intelligent documentation generator that converts GitHub repositories into professional, structured technical documentation using AI-powered analysis. It automatically:
+**Git2Doc** is an intelligent documentation generator that converts GitHub repositories into professional, structured technical documentation using AI-powered analysis. It automatically:
 
 - **Analyzes code** using Google's Gemini 2.0 Flash model
 - **Generates workflow diagrams** showing project architecture
@@ -67,7 +67,7 @@ license: apache-2.0
 
 ## Workflow Architecture
 
-Code2Doc follows this automated workflow:
+Git2Doc follows this automated workflow:
 
 ![Code2Doc Workflow](assets/workflow_diagram.png)
 
@@ -86,7 +86,7 @@ Code2Doc follows this automated workflow:
 ## Project Structure
 
 ```
-Code2Doc/
+Git2Doc/
 ├── main.py                         # Main orchestration script
 ├── doc_creation.py                 # PDF generation with image embedding
 ├── generate_project_workflow.py   # Workflow diagram renderer
@@ -106,7 +106,7 @@ Code2Doc/
 
 ### Generated Files
 
-After running Code2Doc, you'll get:
+After running Git2Doc, you'll get:
 
 | File | Description |
 |------|-------------|
