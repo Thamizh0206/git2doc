@@ -8,7 +8,7 @@ pinned: false
 license: apache-2.0
 ---
 
-# Code2Doc: Automated Repository Documentation Generator
+# Git2Doc: Automated Repository Documentation Generator
 
 > **Transform any GitHub repository into comprehensive technical documentation with AI-powered workflow diagrams — automatically.**
 
