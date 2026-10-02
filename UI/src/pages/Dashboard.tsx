@@ -58,7 +58,21 @@ const Dashboard = () => {
   useEffect(() => {
     if (user && !authLoading) {
       console.log('✅ User authenticated, loading documents');
-      loadDocuments();
+      const pendingRepoUrl = sessionStorage.getItem("git2doc:pending-repo-url");
+      if (pendingRepoUrl) {
+        sessionStorage.removeItem("git2doc:pending-repo-url");
+        setGithubUrl(pendingRepoUrl);
+        setIsGenerating(true);
+        setError("");
+        documentsService.generate({ repo_url: pendingRepoUrl })
+          .then(loadDocuments)
+          .catch((err: unknown) => {
+            setError(err instanceof Error ? err.message : "Failed to start documentation generation");
+          })
+          .finally(() => setIsGenerating(false));
+      } else {
+        loadDocuments();
+      }
     }
   }, [user, authLoading]);
 
@@ -74,6 +88,12 @@ const Dashboard = () => {
       const docs = await documentsService.getAll();
       console.log('✅ Documents loaded:', docs.length);
       setDocuments(docs);
+      if (docs[0]?.status === "failed") {
+        const status = await documentsService.checkStatus(docs[0].id);
+        setError(status.message || "The latest documentation generation failed. Check the backend logs.");
+      } else {
+        setError("");
+      }
     } catch (err: any) {
       console.error("❌ Failed to load documents:", err);
       setError(err.response?.data?.detail || "Failed to load documents");
@@ -92,6 +112,9 @@ const Dashboard = () => {
         try {
           const status = await documentsService.checkStatus(doc.id);
           if (status.status !== "processing") {
+            if (status.status === "failed") {
+              setError(status.message || "Documentation generation failed. Check the backend logs.");
+            }
             loadDocuments();
           }
         } catch (err) {
@@ -347,7 +370,7 @@ const Dashboard = () => {
           </div>
           <div className="card-solid p-6">
             <p className="text-sm text-muted-foreground mb-1">Pages Generated</p>
-            <p className="text-3xl font-bold">{documents.reduce((sum, d) => sum + (d.pages || 0), 0)}</p>
+            <p className="text-3xl font-bold">{documents.reduce((sum, d) => sum + (d.status === "completed" ? d.pages || 0 : 0), 0)}</p>
             <p className="text-xs text-muted-foreground mt-2">All time</p>
           </div>
         </div>
@@ -404,7 +427,9 @@ const Dashboard = () => {
                             )}
                           </div>
                           <div>
-                            <span className="font-medium block">{doc.name}</span>
+                            <span className="font-medium block">
+                              {doc.status === "failed" ? "Generation failed" : doc.name}
+                            </span>
                             <span className="text-xs text-muted-foreground capitalize">{doc.status}</span>
                           </div>
                         </div>
@@ -415,8 +440,8 @@ const Dashboard = () => {
                           {doc.github_repo}
                         </div>
                       </td>
-                      <td className="py-4 px-4 text-muted-foreground hidden lg:table-cell">{doc.pages || "-"}</td>
-                      <td className="py-4 px-4 text-muted-foreground hidden lg:table-cell">{doc.size || "-"}</td>
+                      <td className="py-4 px-4 text-muted-foreground hidden lg:table-cell">{doc.status === "completed" ? doc.pages || "-" : "-"}</td>
+                      <td className="py-4 px-4 text-muted-foreground hidden lg:table-cell">{doc.status === "completed" ? doc.size || "-" : "-"}</td>
                       <td className="py-4 px-4 text-muted-foreground">{formatDate(doc.created_at)}</td>
                       <td className="py-4 px-4">
                         <div className="flex items-center justify-end gap-2">

@@ -22,6 +22,7 @@ export interface DocumentStatus {
     id: number;
     status: string;
     progress: number;
+    message?: string | null;
 }
 
 const documentsService = {

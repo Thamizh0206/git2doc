@@ -1,13 +1,38 @@
 import subprocess
 import os
 import shutil
+import sys
+from threading import Lock
 from pathlib import Path
 from sqlalchemy.orm import Session
 from api.database import Document
 import PyPDF2
 
+_generation_lock = Lock()
 
-async def generate_documentation_task(
+
+def _failure_message(output: str) -> str:
+    lower_output = output.lower()
+    if any(term in lower_output for term in ("quota", "rate limit", "429", "high demand", "try again later", "temporarily")):
+        return "Gemini is rate limited or temporarily at capacity. The job retries briefly; wait for the quota window to reset before trying again."
+    if "github access token is required" in lower_output:
+        return "GitHub rejected the configured token. Check GITHUB_ACCESS_TOKEN in the backend .env file."
+    if "api key" in lower_output and ("invalid" in lower_output or "not found" in lower_output):
+        return "Gemini rejected the configured key. Check GOOGLE_API_KEY in the backend .env file."
+    return "Documentation generation failed. Check the backend logs for details."
+
+
+def generate_documentation_task(
+    doc_id: int,
+    repo_url: str,
+    prompt: str,
+    db_session_maker
+):
+    with _generation_lock:
+        _run_documentation_generation(doc_id, repo_url, prompt, db_session_maker)
+
+
+def _run_documentation_generation(
     doc_id: int,
     repo_url: str,
     prompt: str,
@@ -42,19 +67,26 @@ async def generate_documentation_task(
         # Set up environment with PYTHONPATH
         env = os.environ.copy()
         env['PYTHONPATH'] = str(git2doc_root)
+        env['PYTHONIOENCODING'] = 'utf-8'
         
-        result = subprocess.run(
-            ["python3", "main.py"],
-            stdin=open(temp_input_file),
-            cwd=git2doc_root,
-            env=env,
-            capture_output=True,
-            text=True,
-            timeout=600  # 10 minute timeout
-        )
+        with open(temp_input_file, encoding="utf-8") as input_file:
+            result = subprocess.run(
+                [sys.executable, "main.py"],
+                stdin=input_file,
+                cwd=git2doc_root,
+                env=env,
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                timeout=600  # 10 minute timeout
+            )
         
         if result.returncode != 0:
             print(f"Error generating documentation: {result.stderr}")
+            (output_dir / "generation_error.txt").write_text(
+                _failure_message(result.stderr or result.stdout),
+                encoding="utf-8"
+            )
             # Update database with failed status
             db = db_session_maker()
             try:
@@ -122,6 +154,18 @@ async def generate_documentation_task(
                     db.commit()
             finally:
                 db.close()
+        else:
+            failure_message = "Generator finished without creating a PDF. Check the backend logs for details."
+            print(f"Documentation generator did not produce a PDF for doc_id: {doc_id}")
+            (output_dir / "generation_error.txt").write_text(failure_message, encoding="utf-8")
+            db = db_session_maker()
+            try:
+                doc = db.query(Document).filter(Document.id == doc_id).first()
+                if doc:
+                    doc.status = "failed"
+                    db.commit()
+            finally:
+                db.close()
         
         # Clean up temp file
         if temp_input_file.exists():
@@ -129,6 +173,10 @@ async def generate_documentation_task(
             
     except subprocess.TimeoutExpired:
         print(f"Documentation generation timed out for doc_id: {doc_id}")
+        (output_dir / "generation_error.txt").write_text(
+            "Documentation generation timed out after 10 minutes.",
+            encoding="utf-8"
+        )
         db = db_session_maker()
         try:
             doc = db.query(Document).filter(Document.id == doc_id).first()
@@ -140,6 +188,10 @@ async def generate_documentation_task(
             
     except Exception as e:
         print(f"Error in document generation task: {str(e)}")
+        (output_dir / "generation_error.txt").write_text(
+            "An unexpected error occurred. Check the backend logs for details.",
+            encoding="utf-8"
+        )
         db = db_session_maker()
         try:
             doc = db.query(Document).filter(Document.id == doc_id).first()

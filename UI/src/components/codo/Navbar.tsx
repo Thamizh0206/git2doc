@@ -13,6 +13,13 @@ const Navbar = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const focusRepositoryInput = () => {
+    setIsMobileMenuOpen(false);
+    const input = document.getElementById("repository-url");
+    input?.scrollIntoView({ behavior: "smooth", block: "center" });
+    input?.focus({ preventScroll: true });
+  };
+
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
@@ -70,7 +77,7 @@ const Navbar = () => {
               <Github className="w-5 h-5" />
               GitHub
             </a>
-            <button className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-300 hover:scale-105">
+            <button onClick={focusRepositoryInput} className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-300 hover:scale-105">
               <Sparkles className="w-5 h-5" />
               Get Started
             </button>
@@ -125,7 +132,7 @@ const Navbar = () => {
               <Github className="w-5 h-5" />
               GitHub
             </a>
-            <button className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold shadow-lg">
+            <button onClick={focusRepositoryInput} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold shadow-lg">
               <Sparkles className="w-5 h-5" />
               Get Started
             </button>

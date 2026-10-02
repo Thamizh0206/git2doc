@@ -1,4 +1,8 @@
 import os
+import sys
+import json
+import re
+import time
 from dotenv import load_dotenv
 from agno.agent import Agent
 from agno.models.google import Gemini
@@ -26,6 +30,44 @@ if not github_url:
     raise ValueError("GitHub URL cannot be empty!")
 if not question:
     raise ValueError("Question cannot be empty!")
+
+
+def ensure_model_response(response, stage: str) -> None:
+    content = response.content
+    if not content:
+        raise RuntimeError(f"{stage} returned an empty response")
+
+    try:
+        parsed_content = json.loads(content) if isinstance(content, str) else content
+    except json.JSONDecodeError:
+        return
+
+    if isinstance(parsed_content, dict) and "error" in parsed_content:
+        error = parsed_content["error"]
+        message = error.get("message", "Unknown model API error") if isinstance(error, dict) else str(error)
+        raise RuntimeError(f"{stage} failed: {message}")
+
+
+def run_agent_with_retries(agent, prompt: str, stage: str):
+    for attempt in range(3):
+        try:
+            response = agent.run(prompt)
+            ensure_model_response(response, stage)
+            return response
+        except RuntimeError as error:
+            error_message = str(error)
+            lower_message = error_message.lower()
+            transient_terms = ("quota", "rate limit", "429", "high demand", "try again later", "temporarily")
+            if not any(term in lower_message for term in transient_terms) or attempt == 2:
+                raise
+
+            retry_match = re.search(r"retry in\s+(\d+(?:\.\d+)?)s", error_message, re.IGNORECASE)
+            wait_seconds = float(retry_match.group(1)) + 1 if retry_match else 10 * (attempt + 1)
+            print(f"Gemini rate limit reached; retrying in {wait_seconds:.0f} seconds.")
+            time.sleep(wait_seconds)
+
+    raise RuntimeError(f"{stage} failed after retrying rate limits")
+
 
 def parse_github_url(url: str) -> str:
     """
@@ -57,7 +99,7 @@ except ValueError as e:
 
 
 agent = Agent(
-    model=Gemini(id="gemini-2.0-flash"),
+    model=Gemini(id="gemini-3.8-flash"),
     instructions=[
         f"You are analyzing the GitHub repository: {repo_name}",
         "You have GithubTools available to read repository data.",
@@ -116,12 +158,12 @@ After gathering this data, provide a detailed analysis of the repository's:
 
 IMPORTANT: Actually call the GitHub tools listed above. Don't skip this step!"""
 
-response = agent.run(analysis_prompt)
+response = run_agent_with_retries(agent, analysis_prompt, "Repository analysis")
 
 # Create documentation agent with proper Agno configuration
 documenter = Agent(
     name="DocumentationSpecialist",
-    model=Gemini(id="gemini-2.0-flash"),  # Using Gemini directly via GOOGLE_API_KEY
+    model=Gemini(id="gemini-3.8-flash"),  # Using Gemini directly via GOOGLE_API_KEY
     description="Software documentation specialist that produces formal technical documentation from repository analysis",
     
     # Instructions - comprehensive but flexible structure
@@ -349,7 +391,7 @@ This placeholder will be replaced with the actual workflow diagram image.""",
 
 # Generate documentation
 print("Generating documentation...")
-response1 = documenter.run("""Generate COMPLETE and COMPREHENSIVE technical documentation for the entire repository.
+response1 = run_agent_with_retries(documenter, """Generate COMPLETE and COMPREHENSIVE technical documentation for the entire repository.
 
 IMPORTANT REQUIREMENTS:
 1. You MUST complete ALL sections - do not stop mid-sentence or mid-section
@@ -364,7 +406,6 @@ Generate the complete documentation now:""")
 doc_content = str(response1.content)
 
 # Clean markdown code fences and other artifacts from the beginning/end
-import re
 doc_content = re.sub(r'^```markdown\s*', '', doc_content.strip())
 doc_content = re.sub(r'^```\s*', '', doc_content)
 doc_content = re.sub(r'\s*```$', '', doc_content)
@@ -394,7 +435,7 @@ print()
 # Create workflow generation agent
 workflow_agent = Agent(
     name="WorkflowArchitect",
-    model=Gemini(id="gemini-2.0-flash"),
+    model=Gemini(id="gemini-3.8-flash"),
     description="Software architecture specialist that analyzes repository structure and generates workflow diagrams in JSON format",
     
     instructions="""You are a software architecture specialist responsible for analyzing code repositories and generating HIGH-LEVEL workflow diagrams.
@@ -498,12 +539,9 @@ REPOSITORY ANALYSIS:
 {response.content}
 
 Remember: Return ONLY valid JSON with the structure: meta, node_types, nodes, and edges. Keep it SIMPLE and HIGH-LEVEL."""
-workflow_response = workflow_agent.run(workflow_prompt)
+workflow_response = run_agent_with_retries(workflow_agent, workflow_prompt, "Workflow generation")
 
 # Extract and clean the JSON content
-import json
-import re
-
 workflow_json_str = str(workflow_response.content).strip()
 
 # Remove markdown code fences if present
@@ -586,7 +624,7 @@ print()
 import subprocess
 try:
     result = subprocess.run(
-        ["python", "generate_project_workflow.py"],
+        [sys.executable, "generate_project_workflow.py"],
         capture_output=True,
         text=True,
         timeout=30

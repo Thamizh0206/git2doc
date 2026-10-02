@@ -123,10 +123,19 @@ async def get_document_status(
             detail="Document not found"
         )
     
+    message = None
+    if document.status == "failed":
+        error_path = Path(__file__).resolve().parents[2] / "storage" / "documents" / str(doc_id) / "generation_error.txt"
+        try:
+            message = error_path.read_text(encoding="utf-8").strip()
+        except OSError:
+            message = "Generation failed. Check the backend logs for details."
+
     return {
         "id": document.id,
         "status": document.status,
-        "progress": 100 if document.status == "completed" else (50 if document.status == "processing" else 0)
+        "progress": 100 if document.status == "completed" else (50 if document.status == "processing" else 0),
+        "message": message,
     }
 
 
