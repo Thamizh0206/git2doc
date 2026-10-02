@@ -177,6 +177,7 @@ __marimo__/
 
 # Project-specific generated files
 # Ignore generated documentation outputs (keep examples/ directory)
+/storage/documents/
 *.pdf
 !examples/*.pdf
 content.txt
