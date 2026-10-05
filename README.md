@@ -151,6 +151,18 @@ The generated documentation includes:
 | **Pillow** | Image processing for PDF embedding |
 | **graphviz** | Workflow diagram rendering |
 
+## AI Model Configuration
+
+Gemini is the primary model. If a Gemini request fails, the same agent configuration and tools are retried locally with Ollama. Set `OLLAMA_MODEL` in `.env` to choose the fallback model; the default is `llama3.2:latest`.
+
+Install Ollama, start its local service, and download the configured model:
+
+```bash
+ollama pull llama3.2:latest
+```
+
+Keep `GOOGLE_API_KEY` and `GITHUB_ACCESS_TOKEN` in the project-root `.env`. Ollama removes the Gemini quota dependency during fallback; repository access still requires the GitHub token and network access.
+
 Install all dependencies:
 
 ```bash

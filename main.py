@@ -2,11 +2,12 @@ import os
 import sys
 import json
 import re
-import time
+from copy import copy
 from dotenv import load_dotenv
 from agno.agent import Agent
 from agno.models.google import Gemini
-from agno.models.openrouter import OpenRouter
+# agno.models.ollama is imported lazily inside run_agent_with_fallback
+# to avoid crashing when the `ollama` package is not installed.
 from agno.tools.github import GithubTools
 
 # Load environment variables from .env file
@@ -48,25 +49,62 @@ def ensure_model_response(response, stage: str) -> None:
         raise RuntimeError(f"{stage} failed: {message}")
 
 
-def run_agent_with_retries(agent, prompt: str, stage: str):
-    for attempt in range(3):
+_use_local_llm = False
+
+
+def get_gemini_model_candidates() -> list[str]:
+    configured = os.getenv("GEMINI_MODEL", "").strip()
+    preferred = [configured] if configured else []
+    fallback = [
+        "gemini-3.8-flash",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+    ]
+    ordered = []
+    seen = set()
+    for model in preferred + fallback:
+        if model and model not in seen:
+            ordered.append(model)
+            seen.add(model)
+    return ordered or ["gemini-3.8-flash"]
+
+
+def run_agent_with_fallback(agent, prompt: str, stage: str):
+    global _use_local_llm
+
+    local_model_id = os.getenv("OLLAMA_MODEL", "llama3.2:latest")
+
+    def run_locally():
         try:
-            response = agent.run(prompt)
-            ensure_model_response(response, stage)
-            return response
-        except RuntimeError as error:
-            error_message = str(error)
-            lower_message = error_message.lower()
-            transient_terms = ("quota", "rate limit", "429", "high demand", "try again later", "temporarily")
-            if not any(term in lower_message for term in transient_terms) or attempt == 2:
-                raise
+            from agno.models.ollama import Ollama  # lazy import — requires `ollama` package
+        except ImportError as exc:
+            raise RuntimeError(
+                "Ollama fallback is not available: `ollama` package is not installed. "
+                "Run `pip install ollama` to enable local fallback."
+            ) from exc
+        local_agent = copy(agent)
+        local_agent.model = Ollama(id=local_model_id)
+        response = local_agent.run(prompt)
+        ensure_model_response(response, stage)
+        return response
 
-            retry_match = re.search(r"retry in\s+(\d+(?:\.\d+)?)s", error_message, re.IGNORECASE)
-            wait_seconds = float(retry_match.group(1)) + 1 if retry_match else 10 * (attempt + 1)
-            print(f"Gemini rate limit reached; retrying in {wait_seconds:.0f} seconds.")
-            time.sleep(wait_seconds)
+    if _use_local_llm:
+        return run_locally()
 
-    raise RuntimeError(f"{stage} failed after retrying rate limits")
+    try:
+        response = agent.run(prompt)
+        ensure_model_response(response, stage)
+        return response
+    except Exception as gemini_error:
+        _use_local_llm = True
+        print(f"Gemini failed during {stage}; falling back to local Ollama model {local_model_id}.")
+        try:
+            return run_locally()
+        except Exception as local_error:
+            raise RuntimeError(
+                f"{stage} failed with Gemini ({gemini_error}) and local Ollama is unavailable. "
+                "Install the `ollama` Python package, start an Ollama server, and run `ollama pull {local_model_id}`."
+            ) from local_error
 
 
 def parse_github_url(url: str) -> str:
@@ -99,7 +137,7 @@ except ValueError as e:
 
 
 agent = Agent(
-    model=Gemini(id="gemini-3.8-flash"),
+    model=Gemini(id=os.getenv("GEMINI_MODEL", "gemini-3.8-flash")),
     instructions=[
         f"You are analyzing the GitHub repository: {repo_name}",
         "You have GithubTools available to read repository data.",
@@ -158,12 +196,12 @@ After gathering this data, provide a detailed analysis of the repository's:
 
 IMPORTANT: Actually call the GitHub tools listed above. Don't skip this step!"""
 
-response = run_agent_with_retries(agent, analysis_prompt, "Repository analysis")
+response = run_agent_with_fallback(agent, analysis_prompt, "Repository analysis")
 
 # Create documentation agent with proper Agno configuration
 documenter = Agent(
     name="DocumentationSpecialist",
-    model=Gemini(id="gemini-3.8-flash"),  # Using Gemini directly via GOOGLE_API_KEY
+    model=Gemini(id=os.getenv("GEMINI_MODEL", "gemini-3.8-flash")),  # Using Gemini directly via GOOGLE_API_KEY
     description="Software documentation specialist that produces formal technical documentation from repository analysis",
     
     # Instructions - comprehensive but flexible structure
@@ -391,7 +429,9 @@ This placeholder will be replaced with the actual workflow diagram image.""",
 
 # Generate documentation
 print("Generating documentation...")
-response1 = run_agent_with_retries(documenter, """Generate COMPLETE and COMPREHENSIVE technical documentation for the entire repository.
+response1 = run_agent_with_fallback(
+    documenter,
+    """Generate COMPLETE and COMPREHENSIVE technical documentation for the entire repository.
 
 IMPORTANT REQUIREMENTS:
 1. You MUST complete ALL sections - do not stop mid-sentence or mid-section
@@ -400,7 +440,9 @@ IMPORTANT REQUIREMENTS:
 4. Cover ALL files, components, and implementation details
 5. The documentation should be at least 100+ lines long to be comprehensive
 
-Generate the complete documentation now:""")
+Generate the complete documentation now:""",
+    "Documentation generation",
+)
 
 # Get the documentation content
 doc_content = str(response1.content)
@@ -435,7 +477,7 @@ print()
 # Create workflow generation agent
 workflow_agent = Agent(
     name="WorkflowArchitect",
-    model=Gemini(id="gemini-3.8-flash"),
+    model=Gemini(id=os.getenv("GEMINI_MODEL", "gemini-3.8-flash")),
     description="Software architecture specialist that analyzes repository structure and generates workflow diagrams in JSON format",
     
     instructions="""You are a software architecture specialist responsible for analyzing code repositories and generating HIGH-LEVEL workflow diagrams.
@@ -539,7 +581,7 @@ REPOSITORY ANALYSIS:
 {response.content}
 
 Remember: Return ONLY valid JSON with the structure: meta, node_types, nodes, and edges. Keep it SIMPLE and HIGH-LEVEL."""
-workflow_response = run_agent_with_retries(workflow_agent, workflow_prompt, "Workflow generation")
+workflow_response = run_agent_with_fallback(workflow_agent, workflow_prompt, "Workflow generation")
 
 # Extract and clean the JSON content
 workflow_json_str = str(workflow_response.content).strip()

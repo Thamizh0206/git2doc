@@ -42,7 +42,7 @@ app.include_router(documents.router)
 async def startup_event():
     """Initialize database on startup"""
     init_db()
-    print("🚀 Git2Doc API started successfully!")
+    print("[STARTED] Git2Doc API started successfully!")
 
 
 @app.get("/")
