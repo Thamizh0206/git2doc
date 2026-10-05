@@ -119,7 +119,16 @@ for edge in edges:
 
 # ---------- 6. Render ----------
 try:
-    output_path = dot.render("project_workflow_diagram")
+    output_path = dot.render(filename="project_workflow_diagram", format="png", cleanup=True, outfile="project_workflow_diagram.png")
     print(f"Successfully generated: {output_path}")
 except Exception as e:
     print(f"Error generating diagram: {e}")
+    fallback_source = os.path.abspath("project_workflow_diagram")
+    fallback_output = os.path.abspath("project_workflow_diagram.png")
+    if os.path.exists(fallback_source) and not os.path.exists(fallback_output):
+        try:
+            import subprocess
+            subprocess.run(["dot", "-Tpng", fallback_source, "-o", fallback_output], check=True)
+            print(f"Fallback conversion succeeded: {fallback_output}")
+        except Exception as fallback_error:
+            print(f"Fallback conversion failed: {fallback_error}")

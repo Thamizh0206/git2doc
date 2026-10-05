@@ -49,6 +49,25 @@ def ensure_model_response(response, stage: str) -> None:
         raise RuntimeError(f"{stage} failed: {message}")
 
 
+def extract_json_payload(raw_text: str) -> str:
+    text = raw_text.strip()
+    if not text:
+        raise ValueError("Empty workflow response")
+
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"\s*```$", "", text)
+
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        raise ValueError("No JSON object found in workflow response")
+
+    candidate = text[start : end + 1]
+    json.loads(candidate)
+    return candidate
+
+
 _use_local_llm = False
 
 
@@ -583,14 +602,8 @@ REPOSITORY ANALYSIS:
 Remember: Return ONLY valid JSON with the structure: meta, node_types, nodes, and edges. Keep it SIMPLE and HIGH-LEVEL."""
 workflow_response = run_agent_with_fallback(workflow_agent, workflow_prompt, "Workflow generation")
 
-# Extract and clean the JSON content
-workflow_json_str = str(workflow_response.content).strip()
-
-# Remove markdown code fences if present
-workflow_json_str = re.sub(r'^```json\s*', '', workflow_json_str)
-workflow_json_str = re.sub(r'^```\s*', '', workflow_json_str)
-workflow_json_str = re.sub(r'\s*```$', '', workflow_json_str)
-workflow_json_str = workflow_json_str.strip()
+# Extract and clean the JSON content from a Markdown-wrapped AI response
+workflow_json_str = extract_json_payload(str(workflow_response.content))
 
 # Try to parse and validate the JSON
 try:
@@ -688,8 +701,12 @@ print("=" * 60)
 print()
 
 # Update the documentation content with the workflow diagram
-workflow_diagram_path = os.path.abspath("project_workflow_diagram.png")
-if os.path.exists(workflow_diagram_path):
+workflow_diagram_candidates = [
+    os.path.abspath("project_workflow_diagram.png"),
+    os.path.abspath("project_workflow_diagram"),
+]
+workflow_diagram_path = next((candidate for candidate in workflow_diagram_candidates if os.path.exists(candidate)), None)
+if workflow_diagram_path:
     # Read the current documentation
     with open(output_file, "r") as f:
         doc_content = f.read()
