@@ -323,19 +323,17 @@ def generate_pdf(input_file="content.txt", output_file="simple_document.pdf"):
                     image_path = os.path.join(os.getcwd(), image_path)
                 
                 if not os.path.exists(image_path):
-                    print(f"Warning: Image not found: {image_path}")
-                    return page, doc, y
+                    raise FileNotFoundError(f"Image not found: {image_path}")
             
             # Open the image to get its dimensions
             from PIL import Image
             img = Image.open(image_path)
             img_width, img_height = img.size
             
-            # Calculate scaling to fit within page width
-            available_width = max_width
-            scale = min(1.0, available_width / img_width)
+            # Scale to fit within both page width and page height
+            available_height = height - (2 * margin)
+            scale = min(1.0, max_width / img_width, available_height / img_height)
             
-            # Also check if height would exceed remaining page space
             scaled_height = img_height * scale
             if y + scaled_height > height - margin:
                 # Need a new page
@@ -352,8 +350,8 @@ def generate_pdf(input_file="content.txt", output_file="simple_document.pdf"):
             
             return page, doc, y
         except Exception as e:
-            print(f"Warning: Failed to insert image {image_path}: {e}")
-            return page, doc, y
+            doc.close()
+            raise RuntimeError(f"Failed to insert image {image_path}: {e}") from e
 
     # Function to insert text with proper formatting
     def insert_formatted_line(page, doc, x_pos, y, line, heading_level=0, indent_level=0, list_number=None, preserve_number=False):

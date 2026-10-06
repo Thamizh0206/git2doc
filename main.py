@@ -3,6 +3,8 @@ import os
 import sys
 import json
 import re
+import shutil
+import tempfile
 from copy import copy
 from dotenv import load_dotenv
 from agno.agent import Agent
@@ -678,22 +680,25 @@ print()
 
 # Generate workflow diagram from the JSON
 import subprocess
-try:
+workflow_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "generate_project_workflow.py")
+workflow_diagram_path = os.path.abspath("project_workflow_diagram.png")
+with tempfile.TemporaryDirectory(prefix="git2doc-workflow-") as temp_dir:
+    generated_diagram_path = os.path.join(temp_dir, "project_workflow_diagram.png")
     result = subprocess.run(
-        [sys.executable, "generate_project_workflow.py"],
+        [sys.executable, workflow_script, os.path.abspath(workflow_output_file), generated_diagram_path],
         capture_output=True,
         text=True,
         timeout=30
     )
-    if result.returncode == 0:
-        print(result.stdout)
-    else:
-        print(f"⚠️  Warning: Workflow diagram generation had issues:")
-        print(result.stderr)
-except subprocess.TimeoutExpired:
-    print("⚠️  Warning: Workflow diagram generation timed out")
-except Exception as e:
-    print(f"⚠️  Warning: Could not generate workflow diagram: {e}")
+    if result.returncode != 0:
+        raise RuntimeError(
+            "Workflow diagram generation failed:\n"
+            f"{result.stderr or result.stdout}"
+        )
+    if not os.path.isfile(generated_diagram_path):
+        raise FileNotFoundError("Workflow diagram generator did not create its output image")
+    print(result.stdout)
+    shutil.copyfile(generated_diagram_path, workflow_diagram_path)
 
 print()
 print("=" * 60)
@@ -702,14 +707,9 @@ print("=" * 60)
 print()
 
 # Update the documentation content with the workflow diagram
-workflow_diagram_candidates = [
-    os.path.abspath("project_workflow_diagram.png"),
-    os.path.abspath("project_workflow_diagram"),
-]
-workflow_diagram_path = next((candidate for candidate in workflow_diagram_candidates if os.path.exists(candidate)), None)
-if workflow_diagram_path:
+if os.path.isfile(workflow_diagram_path):
     # Read the current documentation
-    with open(output_file, "r") as f:
+    with open(output_file, "r", encoding="utf-8") as f:
         doc_content = f.read()
     
     # Replace the placeholder with the workflow diagram markdown
@@ -765,9 +765,18 @@ if workflow_diagram_path:
     print()
     print("Generating final PDF with workflow diagram...")
     generate_pdf(input_file=output_file, output_file="technical_documentation.pdf")
+    import fitz
+    with fitz.open("technical_documentation.pdf") as pdf:
+        image_placements = [
+            (page.rect, rect)
+            for page in pdf
+            for image in page.get_images(full=True)
+            for rect in page.get_image_rects(image[0])
+        ]
+        if not image_placements or not all(bounds.contains(rect) for bounds, rect in image_placements):
+            raise RuntimeError("Final PDF was generated without embedding the workflow diagram")
 else:
-    print("Warning: Workflow diagram not found, generating PDF without it")
-    generate_pdf(input_file=output_file, output_file="technical_documentation.pdf")
+    raise FileNotFoundError("Workflow diagram was not generated; refusing to create a PDF without it")
 
 print()
 print("=" * 60)

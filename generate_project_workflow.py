@@ -6,6 +6,7 @@ This is a modified version of workflow.py that uses project_workflow.json instea
 
 import json
 import os
+import sys
 from graphviz import Digraph
 from collections import defaultdict
 
@@ -22,7 +23,8 @@ if "Graphviz" not in os.environ["PATH"]:
             break
 
 # ---------- 1. Load structured input ----------
-input_file = "project_workflow.json"
+input_file = sys.argv[1] if len(sys.argv) > 1 else "project_workflow.json"
+output_file = sys.argv[2] if len(sys.argv) > 2 else "project_workflow_diagram.png"
 
 if not os.path.exists(input_file):
     print(f"Error: {input_file} not found!")
@@ -119,12 +121,17 @@ for edge in edges:
 
 # ---------- 6. Render ----------
 try:
-    output_path = dot.render(filename="project_workflow_diagram", format="png", cleanup=True, outfile="project_workflow_diagram.png")
+    output_path = dot.render(
+        filename=os.path.splitext(output_file)[0],
+        format="png",
+        cleanup=True,
+        outfile=output_file
+    )
     print(f"Successfully generated: {output_path}")
 except Exception as e:
     print(f"Error generating diagram: {e}")
-    fallback_source = os.path.abspath("project_workflow_diagram")
-    fallback_output = os.path.abspath("project_workflow_diagram.png")
+    fallback_source = os.path.splitext(output_file)[0]
+    fallback_output = output_file
     if os.path.exists(fallback_source) and not os.path.exists(fallback_output):
         try:
             import subprocess
