@@ -720,40 +720,12 @@ if os.path.isfile(workflow_diagram_path):
         doc_content = doc_content.replace("[WORKFLOW_DIAGRAM_PLACEHOLDER]", diagram_markdown)
         print("Workflow diagram placeholder replaced")
     else:
-        # Try to insert after Introduction section
-        # Look for common patterns: "## Overview", "## Architecture", "## Components"
-        insertion_patterns = [
-            ("\n## Overview\n", diagram_markdown + "\n## Overview\n"),
-            ("\n## Architecture\n", diagram_markdown + "\n## Architecture\n"),
-            ("\n## Components\n", diagram_markdown + "\n## Components\n"),
-            ("\n## Implementation\n", diagram_markdown + "\n## Implementation\n"),
-        ]
-        
-        inserted = False
-        for pattern, replacement in insertion_patterns:
-            if pattern in doc_content:
-                doc_content = doc_content.replace(pattern, replacement, 1)
-                print(f"✅ Workflow diagram inserted before {pattern.strip()}")
-                inserted = True
-                break
-        
-        if not inserted:
-            # Fallback: insert after first major heading
-            lines = doc_content.split('\n')
-            insert_index = -1
-            for i, line in enumerate(lines):
-                if line.startswith('## ') and i > 0:
-                    insert_index = i
-                    break
-            
-            if insert_index > 0:
-                lines.insert(insert_index, diagram_markdown.strip())
-                doc_content = '\n'.join(lines)
-                print("✅ Workflow diagram inserted after Introduction")
-            else:
-                # Last resort: append after first paragraph
-                doc_content = doc_content + "\n\n" + diagram_markdown
-                print("⚠️  Workflow diagram appended to end of document")
+        title_end = doc_content.find("\n")
+        if title_end == -1:
+            doc_content = doc_content + "\n" + diagram_markdown
+        else:
+            doc_content = doc_content[:title_end + 1] + diagram_markdown + doc_content[title_end + 1:]
+        print("✅ Workflow diagram inserted after the document title")
     
     # Save the updated documentation
     with open(output_file, "w", encoding="utf-8") as f:
