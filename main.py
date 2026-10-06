@@ -1,3 +1,4 @@
+# Entry point for generating repository documentation.
 import os
 import sys
 import json
